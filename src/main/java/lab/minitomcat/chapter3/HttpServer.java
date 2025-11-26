@@ -1,4 +1,4 @@
-package com.example.chapter1;
+package lab.minitomcat.chapter3;
 
 import java.io.File;
 import java.io.IOException;
@@ -40,7 +40,13 @@ public class HttpServer {
                 request.parse();
                 Response response = new Response(output);
                 response.setRequest(request);
-                response.sendStaticResource();
+                if (request.getUri().startsWith("/servlet")) {
+                    ServletProcessor processor = new ServletProcessor();
+                    processor.process(request, response);
+                } else {
+                    StaticResourceProcessor processor = new StaticResourceProcessor();
+                    processor.process(request, response);
+                }
                 // close the socket
                 socket.close();
             } catch (Exception e) {

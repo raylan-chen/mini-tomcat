@@ -1,6 +1,4 @@
-package com.example.chapter1;
-
-import com.sun.source.tree.CatchTree;
+package lab.minitomcat.chapter2;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;

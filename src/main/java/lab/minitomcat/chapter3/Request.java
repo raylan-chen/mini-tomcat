@@ -1,4 +1,4 @@
-package com.example.chapter1;
+package lab.minitomcat.chapter3;
 
 import java.io.InputStream;
 
