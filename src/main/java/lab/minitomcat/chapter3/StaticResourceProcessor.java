@@ -12,20 +12,21 @@ public class StaticResourceProcessor {
     private static final int BUFFER_SIZE = 1024;
 
     private static final String FILE_NOT_FOUND_MESSAGE = """
-            HTTP/1.1 404 File Not Fund\r\n
-            Content-Type: text/html\r\n
-            Content-Length: 23\r\n
-            \r\n
+            HTTP/1.1 404 File Not Found\r
+            Content-Type: text/html\r
+            Content-Length: 23\r
+            \r
             <h1>File Not Found</h1>
             """;
 
     private static final String OK_MESSAGE = """
-            HTTP/1.1 ${StatusCode} ${StatusName}\r\n
-            Content-Type: text/html\r\n
-            Content-Length: ${ContentLength}\r\n
-            Server: minit\r\n
-            Date: ${ZonedDateTime}\r\n
-            \r\n
+            HTTP/1.1 ${StatusCode} ${StatusName}\r
+            Content-Type: text/html\r
+            Content-Length: ${ContentLength}\r
+            Server: minit\r
+            Date: ${ZonedDateTime}\r
+            Connection: close\r
+            \r
             """;
 
     /**

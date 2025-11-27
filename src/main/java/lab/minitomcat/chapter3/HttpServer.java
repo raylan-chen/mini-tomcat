@@ -34,6 +34,8 @@ public class HttpServer {
             try {
                 // 接收请求连接
                 socket = serverSocket.accept();
+                // 10s 读取超时
+                socket.setSoTimeout(10000);
                 input = socket.getInputStream();
                 output = socket.getOutputStream();
                 Request request = new Request(input);

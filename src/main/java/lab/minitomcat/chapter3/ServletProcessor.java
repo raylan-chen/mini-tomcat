@@ -12,10 +12,12 @@ import java.time.format.DateTimeFormatter;
 public class ServletProcessor {
 
     private static final String OK_MESSAGE = """
-            HTTP/1.1 ${StatusCode} ${StatusName}\r\n
-            Content-Type: ${ContentType}\r\n
-            Server: minit\r\n
-            Date: ${ZoneDareTime}\r\n
+            HTTP/1.1 ${StatusCode} ${StatusName}\r
+            Content-Type: ${ContentType}\r
+            Server: minit\r
+            Date: ${ZonedDateTime}\r
+            Connection: close\r
+            \r
             """;
 
     /**
@@ -26,7 +28,7 @@ public class ServletProcessor {
         // 获取uri
         String uri = request.getUri();
         // 根据最后的 "/" 来定位 servlet
-        String servletName = uri.substring(uri.lastIndexOf("/"));
+        String servletName = uri.substring(uri.lastIndexOf("/") + 1);
         OutputStream outputStream = null;
 
         // URLClassLoader 类加载器
@@ -72,7 +74,7 @@ public class ServletProcessor {
         return OK_MESSAGE.replace("${StatusCode}", "200")
                 .replace("${StatusName}", "OK")
                 .replace("${ContentType}", "text/html;charset=utf-8")
-                .replace("${ZoneDateTime}", DateTimeFormatter.ISO_ZONED_DATE_TIME.format(ZonedDateTime.now()))
+                .replace("${ZonedDateTime}", DateTimeFormatter.ISO_ZONED_DATE_TIME.format(ZonedDateTime.now()))
                 ;
     }
 }
