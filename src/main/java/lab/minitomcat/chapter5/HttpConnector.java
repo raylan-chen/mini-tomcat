@@ -41,6 +41,7 @@ public class HttpConnector implements Runnable {
     private void initializeProcessors() {
         for (int i = 0; i < minProcessors; i++) {
             HttpProcessor processor = new HttpProcessor();
+            processor.start();
             processors.push(processor);
         }
     }
@@ -53,8 +54,8 @@ public class HttpConnector implements Runnable {
         int port = 8080;
         try {
             serverSocket = new ServerSocket(port, 1, InetAddress.getByName("127.0.0.1"));
-        } catch (IOException e) {
-            e.printStackTrace();
+        } catch (IOException ex) {
+            ex.printStackTrace();
             System.exit(1);
         }
 
@@ -72,11 +73,10 @@ public class HttpConnector implements Runnable {
                     socket.close();
                     continue;
                 }
+                // 便于后续回收 httpProcessor
+                httpProcessor.setConnector(this);
                 // 处理请求
-                httpProcessor.process(socket);
-                // 处理完毕放回池子
-                processors.push(httpProcessor);
-                socket.close();
+                httpProcessor.assign(socket);
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -85,7 +85,6 @@ public class HttpConnector implements Runnable {
 
     /**
      * 获取 HttpProcessor
-     * @return
      */
     private HttpProcessor getProcessors() {
         synchronized (processors) {
@@ -99,8 +98,18 @@ public class HttpConnector implements Runnable {
             }
             // create new
             HttpProcessor processor = new HttpProcessor();
+            processor.start();
             curProcessors++;
             return processor;
+        }
+    }
+
+    /**
+     * 回收 HttpProcessor
+     */
+    public void recycle(HttpProcessor processor) {
+        synchronized (processors) {
+            processors.push(processor);
         }
     }
 }
