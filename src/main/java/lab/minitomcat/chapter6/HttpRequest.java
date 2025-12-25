@@ -17,6 +17,8 @@ import javax.servlet.http.Part;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.net.InetAddress;
+import java.net.Socket;
 import java.security.Principal;
 import java.util.Collection;
 import java.util.Enumeration;
@@ -25,7 +27,37 @@ import java.util.Locale;
 import java.util.Map;
 
 public class HttpRequest implements HttpServletRequest {
+    // ***************************************************** 成员变量 ***************************************************
 
+    InetAddress address;
+    int port;
+
+    private SocketInputStream socketInputStream;
+    HttpRequestLine httpRequestLine = new HttpRequestLine();
+
+    // ***************************************************** 成员方法 ***************************************************
+
+    public void parese(Socket socket) {
+        // 1.解析 地址和端口
+        parseConnection(socket);
+        // 2.解析 请求头行
+        this.socketInputStream.readRequestLine(httpRequestLine);
+        // 3.解析 请求头
+        parseHeaders();
+    }
+
+    /**
+     * 解析地址和端口
+     * @param socket
+     */
+    private void parseConnection(Socket socket) {
+        address = socket.getInetAddress();
+        port = socket.getPort();
+    }
+
+    private void parseHeaders() {}
+
+    // ***************************************************** 继承方法 ***************************************************
     @Override
     public String getAuthType() {
         return "";
