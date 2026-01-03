@@ -38,12 +38,18 @@ public class HttpRequest implements HttpServletRequest {
     // ***************************************************** 成员方法 ***************************************************
 
     public void parese(Socket socket) {
-        // 1.解析 地址和端口
-        parseConnection(socket);
-        // 2.解析 请求头行
-        this.socketInputStream.readRequestLine(httpRequestLine);
-        // 3.解析 请求头
-        parseHeaders();
+        try {
+            // 1.解析 地址和端口
+            parseConnection(socket);
+            // 2.解析 请求头行
+            this.socketInputStream.readRequestLine(httpRequestLine);
+            // 3.解析 请求头
+            parseHeaders();
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        }  catch (Exception ex) {
+            ex.printStackTrace();
+        }
     }
 
     /**
@@ -57,7 +63,7 @@ public class HttpRequest implements HttpServletRequest {
 
     private void parseHeaders() {}
 
-    // ***************************************************** 继承方法 ***************************************************
+    // ***************************************************** 接口实现方法 ***************************************************
     @Override
     public String getAuthType() {
         return "";
