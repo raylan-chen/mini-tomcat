@@ -31,9 +31,14 @@ public class SocketInputStream extends InputStream {
     protected int pos;
     protected int count;
 
+    /**
+     * 字符串常量
+     */
     private static final String METHOD = "method";
     private static final String URI = "uri";
     private static final String PROTOCOL = "protocol";
+    private static final String NAME = "name";
+    private static final String VALUE = "value";
 
     //  ---------------------------------------------------------- 成员方法
 
@@ -60,6 +65,7 @@ public class SocketInputStream extends InputStream {
         } while (character == CR ||  character == LF);
 
         // 2.method
+        pos--;
         maxRead = httpRequestLine.method.length;
         while (true) {
             if (readCount >= maxRead) {
@@ -122,6 +128,94 @@ public class SocketInputStream extends InputStream {
         }
         httpRequestLine.protocolEnd = readCount;
     }
+
+     /**
+     * 从输入流中读取 HTTP 请求头
+     */
+     public void readHeader(HttpHeader httpHeader)
+             throws IOException {
+         int character = read();
+         if (character == CR ||  character == LF) {
+             if (character == CR) {
+                 // skip LF
+                 read();
+             }
+             httpHeader.nameEnd = 0;
+             httpHeader.valueEnd = 0;
+             return;
+         }
+
+         // 读取 name
+         pos--;
+         int readCount = 0;
+         int maxRead = httpHeader.name.length;
+         while (true) {
+             if (readCount >= maxRead) {
+                 httpHeader.name = ensureBufferCapacity(SocketInputStream.NAME, httpHeader.name, HttpHeader.MAX_NAME_SIZE);
+                 maxRead = httpHeader.name.length;
+             }
+             character = read();
+             if (character < 0) {
+                 throw new IOException("Unexpected end of stream while reading " + SocketInputStream.NAME);
+             }
+             // name: value
+             if (character == COLON) {
+                 break;
+             }
+             char tmp = (char) character;
+             if (tmp >= 'A' && tmp <= 'Z') {
+                 tmp = (char) (tmp - LOWER_LETTER_OFFSET);
+             }
+             httpHeader.name[readCount] = tmp;
+             readCount++;
+         }
+         httpHeader.nameEnd = readCount;
+
+         // 读取 header 值(header 的 value 可以跨越多行)
+         readCount = 0;
+         maxRead = httpHeader.value.length;
+         while (true) {
+             // 跳过空格
+             while (true) {
+                 character = read();
+                 if (character < 0) {
+                     throw new IOException("Unexpected end of stream while reading " + SocketInputStream.VALUE);
+                 }
+                 if (character != SP && character != HT) {
+                     pos--;
+                     break;
+                 }
+             }
+             // value
+             while (true) {
+                 if (readCount >= maxRead) {
+                     httpHeader.value = ensureBufferCapacity(SocketInputStream.VALUE, httpHeader.value, HttpHeader.MAX_VALUE_SIZE);
+                     maxRead = httpHeader.value.length;
+                 }
+                 character = read();
+                 if (character < 0) {
+                     throw new IOException("Unexpected end of stream while reading " + SocketInputStream.VALUE);
+                 }
+                 if (character == CR) {
+                     // skip CR
+                 } else if (character == LF) {
+                     break;
+                 } else {
+                     httpHeader.value[readCount] = (char) character;
+                     readCount++;
+                 }
+             }
+             // 若下一行以 SP 或 HT 开头，则它是上一个 header 的折叠延续
+             character = read();
+             if (character != SP && character != HT) {
+                 pos--;
+                 break;
+             }
+             httpHeader.value[readCount] = ' ';
+             readCount++;
+         }
+         httpHeader.valueEnd = readCount;
+     }
 
     /**
      * 确保请求行字段的缓冲区有足够容量, 必要时进行扩容

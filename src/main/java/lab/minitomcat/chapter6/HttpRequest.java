@@ -16,18 +16,22 @@ import javax.servlet.http.HttpUpgradeHandler;
 import javax.servlet.http.Part;
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.security.Principal;
 import java.util.Collection;
 import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class HttpRequest implements HttpServletRequest {
-    // ***************************************************** 成员变量 ***************************************************
+
+    // --------------------------------------------------------- 成员变量
 
     InetAddress address;
     int port;
@@ -35,8 +39,26 @@ public class HttpRequest implements HttpServletRequest {
     private SocketInputStream socketInputStream;
     HttpRequestLine httpRequestLine = new HttpRequestLine();
 
-    // ***************************************************** 成员方法 ***************************************************
+    private InputStream inputStream;
 
+    private HashMap<String, String> headers = new HashMap<>();
+    private Map<String, String> paramters = new ConcurrentHashMap<>();
+
+    //  --------------------------------------------------------- 构造方法
+
+    /**
+     * 构造函数
+     */
+    public HttpRequest(InputStream inputStream) {
+        this.inputStream = inputStream;
+        this.socketInputStream = new SocketInputStream(this.inputStream, 2048);
+    }
+
+     //  --------------------------------------------------------- 成员方法
+
+     /**
+     * 解析请求
+     */
     public void parese(Socket socket) {
         try {
             // 1.解析 地址和端口
@@ -61,9 +83,32 @@ public class HttpRequest implements HttpServletRequest {
         port = socket.getPort();
     }
 
-    private void parseHeaders() {}
+    /**
+     * 解析请求头
+     * @throws IOException
+     * @throws ServletException
+     */
+    private void parseHeaders() throws IOException,ServletException {
+        while (true) {
+            HttpHeader httpHeader = new HttpHeader();
+            // 读取请求头
+            socketInputStream.readHeader(httpHeader);
+            // 边界条件
+            if (httpHeader.nameEnd == 0) {
+                if (httpHeader.valueEnd == 0) {
+                    return;
+                } else {
+                    throw new ServletException("httpProcessor.parseHeaders.colon");
+                }
+            }
+            String name = new String(httpHeader.name, 0, httpHeader.nameEnd);
+            String value = new String(httpHeader.value, 0, httpHeader.valueEnd);
+            // 存储请求头
+            headers.put(name, value);
+        }
+    }
 
-    // ***************************************************** 接口实现方法 ***************************************************
+    //  --------------------------------------------------------- HttpServletRequest 接口实现方法
     @Override
     public String getAuthType() {
         return "";
