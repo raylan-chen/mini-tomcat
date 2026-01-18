@@ -39,6 +39,8 @@ public class HttpRequest implements HttpServletRequest {
     private SocketInputStream socketInputStream;
     HttpRequestLine httpRequestLine = new HttpRequestLine();
 
+    private String uri;
+
     private InputStream inputStream;
 
     private HashMap<String, String> headers = new HashMap<>();
@@ -46,20 +48,17 @@ public class HttpRequest implements HttpServletRequest {
 
     //  --------------------------------------------------------- 构造方法
 
-    /**
-     * 构造函数
-     */
     public HttpRequest(InputStream inputStream) {
         this.inputStream = inputStream;
         this.socketInputStream = new SocketInputStream(this.inputStream, 2048);
     }
 
-     //  --------------------------------------------------------- 成员方法
+     //  --------------------------------------------------------- 公共方法
 
      /**
      * 解析请求
      */
-    public void parese(Socket socket) {
+    public void parse(Socket socket) {
         try {
             // 1.解析 地址和端口
             parseConnection(socket);
@@ -72,7 +71,14 @@ public class HttpRequest implements HttpServletRequest {
         }  catch (Exception ex) {
             ex.printStackTrace();
         }
+        this.uri = new String(httpRequestLine.uri, 0, httpRequestLine.uriEnd);
     }
+
+    public String getUri() {
+        return this.uri;
+    }
+
+    //  --------------------------------------------------------- 私有方法
 
     /**
      * 解析地址和端口

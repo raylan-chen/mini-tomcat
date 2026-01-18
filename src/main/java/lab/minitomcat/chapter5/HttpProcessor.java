@@ -85,7 +85,7 @@ public class HttpProcessor implements Runnable {
             request.parse();
             Response response = new Response(output);
             response.setRequest(request);
-            if (request.getUri().startsWith("/servlet")) {
+            if (request.getUri() != null && request.getUri().startsWith("/servlet")) {
                 ServletProcessor processor = new ServletProcessor();
                 // 处理业务请求
                 processor.process(request, response);

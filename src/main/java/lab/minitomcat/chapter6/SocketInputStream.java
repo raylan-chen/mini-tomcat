@@ -134,6 +134,7 @@ public class SocketInputStream extends InputStream {
      */
      public void readHeader(HttpHeader httpHeader)
              throws IOException {
+         // Checking for a blank line
          int character = read();
          if (character == CR ||  character == LF) {
              if (character == CR) {

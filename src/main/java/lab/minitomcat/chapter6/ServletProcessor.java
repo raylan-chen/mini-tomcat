@@ -23,7 +23,7 @@ public class ServletProcessor {
     /**
      * 处理动态请求
      */
-    public void process(Request request, Response response) {
+    public void process(HttpRequest request, HttpResponse response) {
         URLClassLoader urlClassLoader = null;
         // 获取uri
         String uri = request.getUri();
@@ -75,5 +75,9 @@ public class ServletProcessor {
                 .replace("${ContentType}", "text/html;charset=utf-8")
                 .replace("${ZonedDateTime}", DateTimeFormatter.ISO_ZONED_DATE_TIME.format(ZonedDateTime.now()))
                 ;
+        // 避免出现粘包/拆包的措施:
+        // 1. 设置 Content-Length
+        // 2. 指定 transfer-encoding: chunked
+        // 3. 使用 短连接
     }
 }

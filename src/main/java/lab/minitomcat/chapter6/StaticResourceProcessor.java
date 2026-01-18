@@ -32,7 +32,7 @@ public class StaticResourceProcessor {
     /**
      * 处理静态资源响应
      */
-    public void process(Request request, Response response) {
+    public void process(HttpRequest request, HttpResponse response) {
         byte[] buffer = new byte[BUFFER_SIZE];
         FileInputStream fis = null;
         OutputStream outputStream = null;

@@ -14,7 +14,7 @@ public class Response implements ServletResponse {
 
     private OutputStream output;
 
-    private Request request;
+    private HttpRequest request;
 
     private PrintWriter writer;
 
@@ -33,7 +33,7 @@ public class Response implements ServletResponse {
         this.output = output;
     }
 
-    public void setRequest(Request request) {
+    public void setRequest(HttpRequest request) {
         this.request = request;
     }
 

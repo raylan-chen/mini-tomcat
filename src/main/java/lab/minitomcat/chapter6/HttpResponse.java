@@ -4,12 +4,51 @@ import javax.servlet.ServletOutputStream;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 
 public class HttpResponse implements HttpServletResponse {
+    // ----------------------------------------------------------- 成员变量
+
+    private OutputStream output;
+
+    private HttpRequest request;
+
+    private PrintWriter writer;
+
+    private String contentType = null;
+
+    private long contentLength = -1;
+
+    private String charset = null;
+
+    private String characterEncoding = null;
+
+    // ----------------------------------------------------------- 构造方法
+
+    public HttpResponse(OutputStream output) {
+        this.output = output;
+    }
+
+    // ----------------------------------------------------------- 公共方法
+
+    public void setRequest(HttpRequest request) {
+        this.request = request;
+    }
+
+    public HttpRequest getRequest() {
+        return this.request;
+    }
+
+    public OutputStream getOutput() {
+        return this.output;
+    }
+
+    // ----------------------------------------------------------- 接口实现方法
     @Override
     public void addCookie(Cookie cookie) {
 
@@ -117,7 +156,7 @@ public class HttpResponse implements HttpServletResponse {
 
     @Override
     public String getCharacterEncoding() {
-        return "";
+        return this.characterEncoding;
     }
 
     @Override
@@ -132,12 +171,13 @@ public class HttpResponse implements HttpServletResponse {
 
     @Override
     public PrintWriter getWriter() throws IOException {
-        return null;
+        writer = new PrintWriter(new OutputStreamWriter(output, getCharacterEncoding()), true);
+        return writer;
     }
 
     @Override
     public void setCharacterEncoding(String charset) {
-
+        this.characterEncoding = charset;
     }
 
     @Override
