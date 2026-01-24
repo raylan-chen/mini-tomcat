@@ -6,19 +6,8 @@ import java.io.PrintWriter;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.net.URLStreamHandler;
-import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
 
 public class ServletProcessor {
-
-    private static final String OK_MESSAGE = """
-            HTTP/1.1 ${StatusCode} ${StatusName}\r
-            Content-Type: ${ContentType}\r
-            Server: minit\r
-            Date: ${ZonedDateTime}\r
-            Connection: close\r
-            \r
-            """;
 
     /**
      * 处理动态请求
@@ -51,33 +40,21 @@ public class ServletProcessor {
             System.out.println(ex.toString());
         }
 
+        // 响应头
         try {
             response.setCharacterEncoding("UTF-8");
-            printWriter = response.getWriter();
-            // 响应头
-            String header = composeResponseHeader();
-            printWriter.println(header);
+            response.sendHeaders();
+        } catch (Exception ex) {
+            System.out.println(ex.toString());
+        }
+
+        try {
             // 创建实例
             Servlet servlet = (Servlet) servletClass.newInstance();
             // 响应体
             servlet.service(request, response);
-        } catch (Exception ex) {
-            System.out.println(ex.toString());
+        } catch (Throwable throwable) {
+            System.out.println(throwable.toString());
         }
-    }
-
-    /**
-     * 组装响应头
-     */
-    private String composeResponseHeader() {
-        return OK_MESSAGE.replace("${StatusCode}", "200")
-                .replace("${StatusName}", "OK")
-                .replace("${ContentType}", "text/html;charset=utf-8")
-                .replace("${ZonedDateTime}", DateTimeFormatter.ISO_ZONED_DATE_TIME.format(ZonedDateTime.now()))
-                ;
-        // 避免出现粘包/拆包的措施:
-        // 1. 设置 Content-Length
-        // 2. 指定 transfer-encoding: chunked
-        // 3. 使用 短连接
     }
 }

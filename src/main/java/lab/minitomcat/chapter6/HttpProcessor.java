@@ -82,11 +82,6 @@ public class HttpProcessor implements Runnable {
             input = socket.getInputStream();
             output = socket.getOutputStream();
 
-            // Request request = new Request(input);
-            // request.parse();
-            // Response response = new Response(output);
-            // response.setRequest(request);
-
             HttpRequest request = new HttpRequest(input);
             request.parse(socket);
             HttpResponse response = new HttpResponse(output);
