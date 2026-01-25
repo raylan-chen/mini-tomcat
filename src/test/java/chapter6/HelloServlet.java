@@ -37,6 +37,12 @@ public class HelloServlet implements Servlet {
                 """;
         // 可以在 service 中调用 setCharacterEncoding 方法来设置字符集
         servletResponse.getWriter().println(doc);
+
+        // 编译错误
+        // HttpRequestFacade httpResponse = (HttpRequestFacade) servletResponse;
+        // httpResponse.sendHeaders();
+        // HttpRequestFacade httpRequest = (HttpRequestFacade) servletRequest;
+        // httpRequest.parse(null);
     }
 
     @Override

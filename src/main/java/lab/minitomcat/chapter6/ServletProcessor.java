@@ -51,8 +51,11 @@ public class ServletProcessor {
         try {
             // 创建实例
             Servlet servlet = (Servlet) servletClass.newInstance();
+            // 门面模式
+            HttpRequestFacade httpRequestFacade = new HttpRequestFacade(request);
+            HttpResponseFacade httpResponseFacade = new HttpResponseFacade(response);
             // 响应体
-            servlet.service(request, response);
+            servlet.service(httpRequestFacade, httpResponseFacade);
         } catch (Throwable throwable) {
             System.out.println(throwable.toString());
         }
