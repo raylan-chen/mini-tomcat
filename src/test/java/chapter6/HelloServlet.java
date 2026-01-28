@@ -1,5 +1,7 @@
 package chapter6;
 
+import lab.minitomcat.chapter6.HttpRequest;
+
 import javax.servlet.Servlet;
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
@@ -43,6 +45,12 @@ public class HelloServlet implements Servlet {
         // httpResponse.sendHeaders();
         // HttpRequestFacade httpRequest = (HttpRequestFacade) servletRequest;
         // httpRequest.parse(null);
+
+        // 模拟不使用Facade类可能发生的不安全行为
+        HttpRequest httpRequest = (HttpRequest) servletRequest;
+        // 抛出异常：java.lang.ClassCastException: class lab.minitomcat.chapter6.HttpRequestFacade cannot be cast to class lab.minitomcat.chapter6.HttpRequest (lab.minitomcat.chapter6.HttpRequestFacade and lab.minitomcat.chapter6.HttpRequest are in unnamed module of loader 'app')
+        // 倘若不使用Facade类，可能会被外部使用者通过类型强转随后获得内部的结构和方法
+        httpRequest.parse(null);
     }
 
     @Override

@@ -62,6 +62,9 @@ public class SocketInputStream extends InputStream {
         // 1.跳过行前的空白字符
         do {
             character = read();
+            if (character < 0) {
+                throw new IOException("Unexpected end of stream while reading CRLF");
+            }
         } while (character == CR ||  character == LF);
 
         // 2.method
