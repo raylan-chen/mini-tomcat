@@ -1,9 +1,11 @@
 package lab.minitomcat.chapter7;
 
+import javax.servlet.ReadListener;
+import javax.servlet.ServletInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
-public class SocketInputStream extends InputStream {
+public class SocketInputStream extends ServletInputStream {
     // ---------------------------------------------------------- 成员变量
 
     /**
@@ -137,7 +139,7 @@ public class SocketInputStream extends InputStream {
      */
      public void readHeader(HttpHeader httpHeader)
              throws IOException {
-         // Checking for a blank line
+         // 请求头与请求行之间以 CRLF 分隔
          int character = read();
          if (character == CR ||  character == LF) {
              if (character == CR) {
@@ -265,5 +267,36 @@ public class SocketInputStream extends InputStream {
         if (nRead > 0) {
             count = nRead;
         }
+    }
+
+    public int available() throws IOException {
+        return (count - pos) + inputStream.available();
+    }
+
+    public void close() throws IOException {
+        if (inputStream == null) {
+            return;
+        }
+        try {
+            inputStream.close();
+        } finally {
+            inputStream = null;
+            buf = null;
+        }
+    }
+
+    @Override
+    public boolean isFinished() {
+        return false;
+    }
+
+    @Override
+    public boolean isReady() {
+        return false;
+    }
+
+    @Override
+    public void setReadListener(ReadListener readListener) {
+
     }
 }

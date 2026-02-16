@@ -22,6 +22,7 @@ import java.net.InetAddress;
 import java.net.Socket;
 import java.security.Principal;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
@@ -40,11 +41,13 @@ public class HttpRequest implements HttpServletRequest {
     HttpRequestLine httpRequestLine = new HttpRequestLine();
 
     private String uri;
+    private String queryString;
+    private boolean parsed = false;
+    private Map<String, String[]> parameters = new ConcurrentHashMap<>();
 
     private InputStream inputStream;
 
     private HashMap<String, String> headers = new HashMap<>();
-    private Map<String, String> paramters = new ConcurrentHashMap<>();
 
     //  --------------------------------------------------------- 构造方法
 
@@ -64,6 +67,8 @@ public class HttpRequest implements HttpServletRequest {
             parseConnection(socket);
             // 2.解析 请求头行
             this.socketInputStream.readRequestLine(httpRequestLine);
+            // 从请求行中提取 uri 和 query string
+            parseRequestLine();
             // 3.解析 请求头
             parseHeaders();
         } catch (IOException ex) {
@@ -71,11 +76,131 @@ public class HttpRequest implements HttpServletRequest {
         }  catch (Exception ex) {
             ex.printStackTrace();
         }
-        this.uri = new String(httpRequestLine.uri, 0, httpRequestLine.uriEnd);
+    }
+
+    public void parseParameters(Map<String, String[]> parameters, byte[] queryStringBytes, String encoding)
+            throws UnsupportedEncodingException {
+        if (parsed) {
+            return;
+        }
+        if (queryStringBytes != null && queryStringBytes.length > 0) {
+            int pos = 0;  // 当前参数段的起始位置
+            int ix = 0;  // 读取索引
+            int ox = 0;  // 写入偏移（相对于pos）
+            String name = null;
+            String value = null;
+            while (ix < queryStringBytes.length) {
+                byte c = queryStringBytes[ix++];
+                switch (c) {
+                    case '=':  // key=value
+                        name = new String(queryStringBytes, pos, ox, encoding);
+                        pos = ix;
+                        ox = 0;
+                        break;
+                    case '&':  // key=value&key=value
+                        value = new String(queryStringBytes, pos, ox, encoding);
+                        if (name != null) {
+                            putMapEntry(parameters, name, value);
+                            name = null;
+                        }
+                        pos = ix;
+                        ox = 0;
+                        break;
+                    case '+':  // key=value+with+spaces
+                        queryStringBytes[pos + ox++] = (byte) ' ';
+                        break;
+                    case '%':  // key=value%20with%20spaces
+                        if (ix + 1 < queryStringBytes.length) {
+                            queryStringBytes[pos + ox++] = (byte) ((convertHexDigit(queryStringBytes[ix++]) << 4)
+                                    + convertHexDigit(queryStringBytes[ix++]));
+                        } else {
+                            // 不完整的编码，保持原样或忽略(GET /servlet?test=hello%, GET /servlet?test=hello%2)
+                            queryStringBytes[pos + ox++] = (byte) '%';
+                            if (ix < queryStringBytes.length) {
+                                queryStringBytes[pos + ox++] = queryStringBytes[ix++];
+                            }
+                        }
+                        break;
+                    default:
+                        queryStringBytes[pos + ox++] = c;
+                }
+            }
+            // 最后一个参数没有 '&' 结尾
+            if (name != null) {
+                value = new String(queryStringBytes, pos, ox, encoding);
+                putMapEntry(parameters, name, value);
+            }
+        }
+        parsed = true;
     }
 
     public String getUri() {
         return this.uri;
+    }
+
+    // ---------------------------------------------------------- protected 方法
+
+    /**
+     * 解析参数, 从 query string 和 body 中提取参数, 存储在 parameters 中
+     */
+    protected void parseParameters() {
+        if (parsed) {
+            return;
+        }
+        // parameters(url)
+        String encoding = getCharacterEncoding();
+        if (encoding == null) {
+            // 单字节编码, ISO-8859-1/latin-1, 不支持中文
+            encoding = "ISO-8859-1";
+        }
+        String queryString = getQueryString();
+        if (queryString != null) {
+            byte[] queryStringBytes = new byte[queryString.length()];
+            try {
+                queryStringBytes = queryString.getBytes(encoding);
+                parseParameters(this.parameters, queryStringBytes, encoding);
+            } catch (UnsupportedEncodingException ex) {
+                ex.printStackTrace();
+            }
+        }
+
+        // content type(for POST parameters parsing)
+        String contentType = getContentType();
+        if (contentType == null) {
+            contentType = "";
+        }
+        int semicolonIndex = contentType.indexOf(';');
+        if (semicolonIndex > 0) {
+            contentType = contentType.substring(0, semicolonIndex).trim();
+        } else {
+            contentType = contentType.trim();
+        }
+
+        // parameters(POST, content-type: "...urlencoded", body)
+        if ("POST".equals(getMethod()) && (getContentLength() > 0) && "application/x-www-form-urlencoded".equals(contentType)) {
+            try {
+                int max = getContentLength();
+                int hasRead = 0;
+                byte[] body = new byte[max];
+                ServletInputStream servletInputStream = getInputStream();
+                while (hasRead < max) {
+                    int readCount = servletInputStream.read(body, hasRead, max - hasRead);
+                    if (readCount < 0) {
+                        break;
+                    }
+                    hasRead += readCount;
+                }
+                servletInputStream.close();
+                if (hasRead < max) {
+                    throw new IOException("Content length mismatch");
+                }
+                parseParameters(parameters, body, encoding);
+            } catch (UnsupportedEncodingException ue) {
+
+            } catch (IOException ie) {
+                throw new RuntimeException("Content read fail");
+            }
+        }
     }
 
     //  --------------------------------------------------------- 私有方法
@@ -114,7 +239,44 @@ public class HttpRequest implements HttpServletRequest {
         }
     }
 
+    /**
+     * 解析请求行, 从 uri[] 中提取 uri 和 query string
+     */
+    private void parseRequestLine() {
+        // 自定义 indexOf, 从 uri 数组中查找 '?' 字符的位置
+        int queryIndex = httpRequestLine.indexOf(new char[]{'?'});
+        if (queryIndex >= 0) {
+            queryString = new String(httpRequestLine.uri, queryIndex + 1, httpRequestLine.uriEnd - queryIndex - 1);
+            uri = new String(httpRequestLine.uri, 0, queryIndex);
+        } else {
+            queryString = null;
+            uri = new String(httpRequestLine.uri, 0, httpRequestLine.uriEnd);
+        }
+    }
+
+    private void putMapEntry(Map<String, String[]> parameters, String name, String value) {
+        String[] newValues = null;
+        String[] oldValues = parameters.get(name);
+        if (oldValues == null) {
+            newValues = new String[1];
+            newValues[0] = value;
+        } else {
+            newValues = new String[oldValues.length + 1];
+            System.arraycopy(oldValues, 0, newValues, 0, oldValues.length);
+            newValues[oldValues.length] = value;
+        }
+        parameters.put(name, newValues);
+    }
+
+    private byte convertHexDigit(byte b) {
+        if (b >= '0' && b <= '9') return (byte) (b - '0');
+        if (b >= 'a' && b <= 'f') return (byte) (b - 'a' + 10);
+        if (b >= 'A' && b <= 'F') return (byte) (b - 'A' + 10);
+        return 0;
+    }
+
     //  --------------------------------------------------------- HttpServletRequest 接口实现方法
+
     @Override
     public String getAuthType() {
         return "";
@@ -172,7 +334,7 @@ public class HttpRequest implements HttpServletRequest {
 
     @Override
     public String getQueryString() {
-        return "";
+        return this.queryString;
     }
 
     @Override
@@ -287,7 +449,8 @@ public class HttpRequest implements HttpServletRequest {
 
     @Override
     public String getCharacterEncoding() {
-        return "";
+        // 此处存在错误(content-type, accept-charset)
+        return headers.get(DefaultHeaders.TRANSFER_ENCODING_NAME);
     }
 
     @Override
@@ -297,7 +460,16 @@ public class HttpRequest implements HttpServletRequest {
 
     @Override
     public int getContentLength() {
-        return 0;
+        String contentLength = headers.get(DefaultHeaders.CONTENT_LENGTH_NAME);
+        if (contentLength == null) {
+            // 未知长度返回 -1
+            return -1;
+        }
+        try {
+            return Integer.parseInt(contentLength);
+        } catch (NumberFormatException nx) {
+            return -1;
+        }
     }
 
     @Override
@@ -307,32 +479,41 @@ public class HttpRequest implements HttpServletRequest {
 
     @Override
     public String getContentType() {
-        return "";
+        return headers.get(DefaultHeaders.CONTENT_TYPE_NAME);
     }
 
     @Override
     public ServletInputStream getInputStream() throws IOException {
-        return null;
+        return this.socketInputStream;
     }
 
     @Override
     public String getParameter(String name) {
-        return "";
+        parseParameters();
+        String[] values = parameters.get(name);
+        if (values != null) {
+            return values[0];
+        } else {
+            return null;
+        }
     }
 
     @Override
     public Enumeration<String> getParameterNames() {
-        return null;
+        parseParameters();
+        return Collections.enumeration(parameters.keySet());
     }
 
     @Override
     public String[] getParameterValues(String name) {
-        return new String[0];
+        parseParameters();
+        return parameters.get(name);
     }
 
     @Override
     public Map<String, String[]> getParameterMap() {
-        return Map.of();
+        parseParameters();
+        return this.parameters;
     }
 
     @Override
