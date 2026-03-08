@@ -10,4 +10,8 @@ public class DefaultHeaders {
     static final String CONTENT_TYPE_NAME = "content-type";
     // 用于 chunked
     static final String TRANSFER_ENCODING_NAME = "transfer-encoding";
+    // /servlet;jsessionid=123456?test=hello
+    static final String JSESSIONID_NAME = ";jsessionid=";
+    // Cookie: name=value; name2=value2
+    static final String COOKIE_NAME = "Cookie";
 }

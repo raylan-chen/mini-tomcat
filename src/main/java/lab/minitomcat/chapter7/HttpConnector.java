@@ -1,11 +1,15 @@
 package lab.minitomcat.chapter7;
 
+import javax.servlet.http.HttpSession;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.Map;
+import java.util.Random;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class HttpConnector implements Runnable {
     /**
@@ -18,6 +22,10 @@ public class HttpConnector implements Runnable {
      * 池化, 减少创建对象开销
      */
     private Deque<HttpProcessor> processors = new ArrayDeque<>();
+    /**
+     * session map 存储 session
+     */
+    public static Map<String, HttpSession> sessions = new ConcurrentHashMap<>();
 
     /**
      * 启动 HttpConnector
@@ -111,5 +119,46 @@ public class HttpConnector implements Runnable {
         synchronized (processors) {
             processors.push(processor);
         }
+    }
+
+    /**
+     * 创建 HttpSession
+     */
+    public static HttpSession createSession() {
+        Session session = new Session();
+        session.setValid(true);
+        session.setCreationTime(System.currentTimeMillis());
+        String sessionId = generateSessionId();
+        session.setId(sessionId);
+        sessions.put(sessionId, session);
+        return session;
+    }
+
+    /**
+     * 以随机方式生成byte数组, 形成sessionId
+     */
+    protected static synchronized String generateSessionId() {
+        Random random = new Random();
+        long seed = System.currentTimeMillis();
+        random.setSeed(seed);
+        byte[] bytes = new byte[16];
+        random.nextBytes(bytes);
+        // 线程安全
+        StringBuffer stringBuffer = new StringBuffer();
+        for (int i = 0; i < bytes.length; i++) {
+            byte b1 = (byte) ((bytes[i] & 0xf0) >> 4);
+            byte b2 = (byte) (bytes[i] & 0x0f);
+            if (b1 < 10) {
+                stringBuffer.append((char) ('0' + b1));
+            } else {
+                stringBuffer.append((char) ('A' + b1 - 10));
+            }
+            if (b2 < 10) {
+                stringBuffer.append((char) ('0' + b2));
+            } else {
+                stringBuffer.append((char) ('A' + b2 -10));
+            }
+        }
+        return stringBuffer.toString();
     }
 }

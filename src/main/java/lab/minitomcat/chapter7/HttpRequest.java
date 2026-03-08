@@ -21,6 +21,7 @@ import java.io.UnsupportedEncodingException;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.security.Principal;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Enumeration;
@@ -49,6 +50,11 @@ public class HttpRequest implements HttpServletRequest {
 
     private HashMap<String, String> headers = new HashMap<>();
 
+    Cookie[] cookies;
+    String sessionid;
+    HttpSession session;
+    SessionFacade sessionFacade;
+
     //  --------------------------------------------------------- 构造方法
 
     public HttpRequest(InputStream inputStream) {
@@ -67,9 +73,9 @@ public class HttpRequest implements HttpServletRequest {
             parseConnection(socket);
             // 2.解析 请求头行
             this.socketInputStream.readRequestLine(httpRequestLine);
-            // 从请求行中提取 uri 和 query string
+            // 从请求行中提取 uri, query string, sessionid
             parseRequestLine();
-            // 3.解析 请求头
+            // 3.解析 请求头, 提取 cookie, sessionid
             parseHeaders();
         } catch (IOException ex) {
             ex.printStackTrace();
@@ -134,8 +140,49 @@ public class HttpRequest implements HttpServletRequest {
         parsed = true;
     }
 
+    /**
+     * 解析 Cookie 请求头, 从 headerValue 中提取 Cookie 对象数组
+     */
+    public Cookie[] parseCookieHeader(String headerValue) {
+        if (headerValue == null || headerValue.length() < 1) {
+            return new Cookie[0];
+        }
+        ArrayList<Cookie> cookieList = new ArrayList<>();
+        while (headerValue.length() > 0) {
+            // name=value; name2=value2
+            int semicolonIndex = headerValue.indexOf(';');
+            if (semicolonIndex < 0) {
+                semicolonIndex = headerValue.length();
+            }
+            if (semicolonIndex == 0) {
+                break;
+            }
+            String token = headerValue.substring(0, semicolonIndex);
+            if (semicolonIndex < headerValue.length()) {
+                headerValue = headerValue.substring(semicolonIndex + 1);
+            } else {
+                headerValue = "";
+            }
+            try {
+                int equalsIndex = token.indexOf('=');
+                if (equalsIndex > 0) {
+                    String name = token.substring(0, equalsIndex).trim();
+                    String value = token.substring(equalsIndex + 1).trim();
+                    cookieList.add(new Cookie(name, value));
+                }
+            } catch (Throwable ex) {
+
+            }
+        }
+        return cookieList.toArray(new Cookie[0]);
+    }
+
     public String getUri() {
         return this.uri;
+    }
+
+    public String getSessionId() {
+        return this.sessionid;
     }
 
     // ---------------------------------------------------------- protected 方法
@@ -236,6 +283,17 @@ public class HttpRequest implements HttpServletRequest {
             String value = new String(httpHeader.value, 0, httpHeader.valueEnd);
             // 存储请求头
             headers.put(name, value);
+            // 处理 cookie 和 sessionid
+            if (DefaultHeaders.COOKIE_NAME.equals(name)) {
+                Cookie[] cookies = parseCookieHeader(value);
+                this.cookies = cookies;
+                for (int i = 0; i < cookies.length; i++) {
+                    Cookie cookie = cookies[i];
+                    if ("jsessionid".equals(cookie.getName())) {
+                        this.sessionid = cookie.getValue();
+                    }
+                }
+            }
         }
     }
 
@@ -246,11 +304,24 @@ public class HttpRequest implements HttpServletRequest {
         // 自定义 indexOf, 从 uri 数组中查找 '?' 字符的位置
         int queryIndex = httpRequestLine.indexOf(new char[]{'?'});
         if (queryIndex >= 0) {
+            // /test/TestServlet;jsessionid=5AC6268DD8D4D5D1FDF5D41E9F2FD960?curAlbumID=9
             queryString = new String(httpRequestLine.uri, queryIndex + 1, httpRequestLine.uriEnd - queryIndex - 1);
             uri = new String(httpRequestLine.uri, 0, queryIndex);
+            // 处理 jsessionid
+            int semicolon = uri.indexOf(DefaultHeaders.JSESSIONID_NAME);
+            if (semicolon > 0) {
+                sessionid = uri.substring(semicolon + DefaultHeaders.JSESSIONID_NAME.length());
+                uri = uri.substring(0, semicolon);
+            }
         } else {
+            // /test/TestServlet;jsessionid=5AC6268DD8D4D5D1FDF5D41E9F2FD960
             queryString = null;
             uri = new String(httpRequestLine.uri, 0, httpRequestLine.uriEnd);
+            int semicolon = httpRequestLine.indexOf(DefaultHeaders.JSESSIONID_NAME);
+            if (semicolon > 0) {
+                sessionid = uri.substring(semicolon + DefaultHeaders.JSESSIONID_NAME.length());
+                uri = uri.substring(0, semicolon);
+            }
         }
     }
 
@@ -284,7 +355,7 @@ public class HttpRequest implements HttpServletRequest {
 
     @Override
     public Cookie[] getCookies() {
-        return new Cookie[0];
+        return this.cookies;
     }
 
     @Override
@@ -374,12 +445,26 @@ public class HttpRequest implements HttpServletRequest {
 
     @Override
     public HttpSession getSession(boolean create) {
-        return null;
+        if (sessionFacade != null) {
+            return sessionFacade;
+        }
+        // 从 url/headers 中获取 sessionid
+        if (sessionid != null) {
+            session = HttpConnector.sessions.get(sessionid);
+            if (session == null) {
+                session = HttpConnector.createSession();
+            }
+            sessionFacade = new SessionFacade(session);
+            return sessionFacade;
+        }
+        session = HttpConnector.createSession();
+        sessionFacade = new SessionFacade(session);
+        return sessionFacade;
     }
 
     @Override
     public HttpSession getSession() {
-        return null;
+        return this.sessionFacade;
     }
 
     @Override
