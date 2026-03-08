@@ -1,4 +1,4 @@
-package lab.minitomcat.chapter7;
+package lab.minitomcat.chapter8;
 
 public class DefaultHeaders {
     static final String HOST_NAME = "host";

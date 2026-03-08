@@ -1,4 +1,4 @@
-package lab.minitomcat.chapter7;
+package lab.minitomcat.chapter8;
 
 public class HttpHeader {
     // ----------------------------------------------------------- 成员变量

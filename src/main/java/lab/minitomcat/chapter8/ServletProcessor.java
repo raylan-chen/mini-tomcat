@@ -1,4 +1,4 @@
-package lab.minitomcat.chapter7;
+package lab.minitomcat.chapter8;
 
 import javax.servlet.Servlet;
 import java.io.File;
