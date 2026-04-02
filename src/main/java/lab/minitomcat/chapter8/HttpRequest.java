@@ -237,7 +237,8 @@ public class HttpRequest implements HttpServletRequest {
                 if (hasRead < contentLength) {
                     throw new IOException("Content length mismatch");
                 }
-                // 如果POST请求 URI 的 query param 不为空时会运行 parseParameters 导致 parsed 为 true
+                // pared 如果放在 public 的 parseParameters 函数中会遇到问题:
+                // 即遇到 POST 请求 URI 的 query param 不为空时会运行 parseParameters 从而导致 parsed 为 true, 随后跳过 body 参数解析
                 parseParameters(parameters, body, encoding);
             } catch (UnsupportedEncodingException ue) {
 
