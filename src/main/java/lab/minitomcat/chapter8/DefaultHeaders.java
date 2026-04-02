@@ -13,5 +13,5 @@ public class DefaultHeaders {
     // /servlet;jsessionid=123456?test=hello
     static final String JSESSIONID_NAME = ";jsessionid=";
     // Cookie: name=value; name2=value2
-    static final String COOKIE_NAME = "Cookie";
+    static final String COOKIE_NAME = "cookie";
 }

@@ -90,7 +90,7 @@ public class HttpRequestLine {
                 return -1;
             }
             // 字符比对
-            for (int i = 1; i < bufLen; i++) {
+            for (int i = 0; i < bufLen; i++) {
                 // 字符不一致, 重新寻找
                 if (uri[pos + i] != buf[i]) {
                     break;

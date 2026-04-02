@@ -86,9 +86,6 @@ public class HttpRequest implements HttpServletRequest {
 
     public void parseParameters(Map<String, String[]> parameters, byte[] queryStringBytes, String encoding)
             throws UnsupportedEncodingException {
-        if (parsed) {
-            return;
-        }
         if (queryStringBytes != null && queryStringBytes.length > 0) {
             int pos = 0;  // 当前参数段的起始位置
             int ix = 0;  // 读取索引
@@ -137,7 +134,6 @@ public class HttpRequest implements HttpServletRequest {
                 putMapEntry(parameters, name, value);
             }
         }
-        parsed = true;
     }
 
     /**
@@ -224,23 +220,24 @@ public class HttpRequest implements HttpServletRequest {
         }
 
         // parameters(POST, content-type: "...urlencoded", body)
-        if ("POST".equals(getMethod()) && (getContentLength() > 0) && "application/x-www-form-urlencoded".equals(contentType)) {
+        int contentLength = getContentLength();
+        if ("POST".equals(getMethod()) && contentLength > 0 && "application/x-www-form-urlencoded".equals(contentType)) {
             try {
-                int max = getContentLength();
                 int hasRead = 0;
-                byte[] body = new byte[max];
+                byte[] body = new byte[contentLength];
                 ServletInputStream servletInputStream = getInputStream();
-                while (hasRead < max) {
-                    int readCount = servletInputStream.read(body, hasRead, max - hasRead);
+                while (hasRead < contentLength) {
+                    int readCount = servletInputStream.read(body, hasRead, contentLength - hasRead);
                     if (readCount < 0) {
                         break;
                     }
                     hasRead += readCount;
                 }
                 servletInputStream.close();
-                if (hasRead < max) {
+                if (hasRead < contentLength) {
                     throw new IOException("Content length mismatch");
                 }
+                // 如果POST请求 URI 的 query param 不为空时会运行 parseParameters 导致 parsed 为 true
                 parseParameters(parameters, body, encoding);
             } catch (UnsupportedEncodingException ue) {
 
@@ -248,6 +245,7 @@ public class HttpRequest implements HttpServletRequest {
                 throw new RuntimeException("Content read fail");
             }
         }
+        parsed = true;
     }
 
     //  --------------------------------------------------------- 私有方法
